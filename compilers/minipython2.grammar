@@ -1,0 +1,239 @@
+/*Galanopoulou Rafaila 8160018
+Kosmas Stylianos-Ioannis 3100080 */
+
+Package minipython;
+
+Helpers
+	digit = ['0' .. '9'];
+	letter = ['a' .. 'z']|['A' .. 'Z'];
+	cr = 13;
+	lf = 10;
+	all = [0..127];
+	space = 32;
+	eol = lf | cr | cr lf ; /* end of line */
+	//underscore = '_';
+	//single_quotes = ''';
+	//double_quotes = '"';
+	not_eol =  [all - [cr + lf]];
+	//plus_ch = '+';
+	//minus_ch = '-';
+	//num = digit+;
+	//integer = (plus_ch | minus_ch)? num;
+	//dot_ch = '.';
+	/*decimal = integer? dot_ch? num+;*/
+
+Tokens
+	tab = 9;
+	point = '.';
+	plus = '+';
+	minus = '-';
+	mult = '*';
+	div = '/';
+	eq = '=';
+	l_par = '(';
+	r_par = ')';
+	comma=',';
+	l_br = '[';
+	r_br = ']';
+	def = 'def';
+	if = 'if';
+	for = 'for';
+	while = 'while';
+	in = 'in';
+	assert = 'assert';
+	return = 'return';
+	mineq = '-=';
+	diveq = '/=';
+	mod = '%';
+	pow = '**';
+	and = 'and';
+	or = 'or';
+	not = 'not';
+	print = 'print';
+	less = '<';
+	great = '>';
+	eqless = '<=';
+	eqgreat = '>=';
+	noteq = '!=';
+	logeq = '==';
+	true = 'true';
+	pp = '++';
+	mm = '--';
+	semi = ':';
+	false = 'false';
+	none = 'none';
+	else = 'else';
+	blank = (' ' | lf | cr);
+	line_comment = '#' not_eol* eol;
+	//number = digit+ | (digit+ '.' digit+);
+	id = letter (letter | digit)*;
+	decimal = digit* '.' digit+;
+	integer = ([digit-'0'] digit* | '0');
+	string = '"'(letter|space)*'"'|'''(letter|space)*''';
+
+Ignored Tokens
+	blank, line_comment;
+
+Productions
+
+	programme = commands* {-> New programme([commands])};
+
+	commands =	{func} function {-> New commands.func(function)}|
+							{stat} statement {-> New commands.stat(statement)};
+
+	function = 	 def id l_par argument? r_par semi statement {-> New function(id,[argument],statement)} ;
+
+	argument = 	id value_arg? comma_id*{->New argument(id,[value_arg],[comma_id])};
+
+	//combo 	= 	comma_id value_arg? {-> New combo.combine(comma_id,value_arg)} ;
+
+	value_arg = {value} eq value {-> New value_arg(value)};
+
+	comma_id = 	comma id value_arg{-> New comma_id(id,[value_arg])};
+
+	comma_expr = comma expression{-> New comma_expr(expression)};
+
+	statement =	{if}tab* if  comparison semi statement {-> New statement.if(comparison,statement)} |
+						  {while} tab* while  comparison semi statement {-> New statement.while(comparison,statement)} |
+						  {for}tab* for [l_id]:id in [r_id]:id semi statement {-> New statement.for(l_id,r_id,statement)}|
+						  {return} tab* return expression {-> New statement.return(expression)}|
+						  {print}tab* print expression comma_expr* {-> New statement.print(expression,[comma_expr])}|
+						  {equal}tab* id eq expression {-> New statement.equal(id,expression)}|
+						  {mineqs}tab*  id mineq expression {-> New statement.mineqs(id,expression)}|
+						  {diveqs}tab*  id diveq expression {-> New statement.diveqs(id,expression)}|
+						  {arrays}tab* id l_br [l_expr]:expression r_br eq [r_expr]:expression {-> New statement.arrays(id,l_expr,r_expr)}|
+						  {assert} tab* assert expression comma_expr? {-> New statement.assert(expression,comma_expr)}|
+							{functionc} tab* id l_par arglist? r_par{-> New statement.functionc(id, arglist)};
+
+
+  comparison = 	{orc} comparison or and_comparison {-> New comparison.orc(comparison,and_comparison.comparison)}|
+				 				{andc} and_comparison {-> New comparison.andc(and_comparison.comparison)};
+	and_comparison{-> comparison} = {andc} and_comparison and not_comparison {-> New comparison.andc(and_comparison.comparison)}|
+				 	 												{notc} not_comparison {-> New comparison.notc(not_comparison.comparison)};
+	not_comparison{-> comparison} = {notc} not not_comparison {-> New comparison.notc(not_comparison.comparison)}|
+					 												{comp} exp_comparison {-> New comparison.comp(exp_comparison.comparison)};
+	exp_comparison{-> comparison} = {true} true {-> New comparison.true(true)}|
+																 	{false} false {-> New comparison.false(false)}|
+																 	{lessc} [lpar]:expression less [rpar]:expression{-> New comparison.lessc(lpar,rpar)}|
+																 	{greatc}[lpar]:expression great [rpar]:expression {-> New comparison.greatc(lpar,rpar)}|
+																 	{eqgreatc}[lpar]:expression eqgreat [rpar]:expression {-> New comparison.eqgreatc(lpar,rpar)}|
+																 	{eqless}[lpar]:expression eqless [rpar]:expression {-> New comparison.eqless(lpar,rpar)}|
+																 	{noteqc}[lpar]:expression noteq [rpar]:expression {-> New comparison.noteqc(lpar,rpar)}|
+																 	{logeqc}[lpar]:expression logeq [rpar]:expression {-> New comparison.logeqc(lpar,rpar)};
+
+	sign = {neg} minus {->New sign.neg(minus)}|
+				 {pos} plus{->New sign.pos(plus)};
+
+	number = {integer} sign? integer{->New number.integer([sign],integer)}|
+					 {dec} sign? decimal{->New number.decimal([sign],decimal)};
+
+	comma_value = 	comma value {->New comma_value(value)};
+
+	more_values = {more_values} value comma_value*{->New more_values(value,[comma_value])};
+
+	expression = 	{multiplication} multiplication {-> multiplication.expression}|
+							 	{addition} expression plus multiplication {-> New expression.addition(expression,multiplication.expression)}|
+							 	{substraction} expression minus multiplication{-> New expression.substraction(expression,multiplication.expression)};
+
+	multiplication{->expression} = {pow} power {-> power.expression}|
+																 {multiplication} multiplication mult power{-> New expression.multiplication(multiplication.expression,power.expression)} |
+																 {div} multiplication div power{-> New expression.div(multiplication.expression,power.expression)} |
+																 {mod} multiplication mod power{-> New expression.mod(multiplication.expression,power.expression)};
+
+	power{->expression} = {pow} predoubles pow power{-> New expression.pow(predoubles.expression,power.expression)} |
+												{predoublep} predoubles{-> predoubles.expression} ;
+
+	predoubles{->expression} = 	{dplus} pp postdoubles{-> New expression.dplus(postdoubles.expression)} | /*++a*/
+												  		{dminus} mm postdoubles{-> New expression.dminus(postdoubles.expression)} |
+												  		{postd} postdoubles{-> postdoubles.expression};
+
+	postdoubles{->expression} = {dplus} something pp{-> New expression.dplus(something.expression)} | /*a++*/
+														 	{dminus} something mm {-> New expression.dminus(something.expression)}|
+														  {sth} something{-> something.expression};
+
+	something{->expression} =	{identifier}id {-> New expression.identifier(id)}|
+														{val} value {-> New expression.val(value)}|
+														{functioncalls} function_call {-> New expression.functioncalls(function_call)}|
+														{par_exp} l_par expression r_par {-> New expression.par_exp(expression)} |
+											   		{br_exp} l_br more_values* r_br {->New expression.br_exp([more_values])}|
+														{id_expr}id l_br expression r_br{-> New expression.id_expr(id,expression)} ;
+
+	function_call = id l_par arglist? r_par{-> New function_call(id,[arglist])};
+
+	arglist = expression comma_expr* {-> New arglist(expression,[comma_expr])};
+
+	value 	=	{idfunctionv}id point function_call {-> New value.idfunctionv(id,function_call)}|
+						{number} number{-> New value.number(number)}|
+						{stringv} string {-> New value.stringv(string)}|
+						{none} none{-> New value.none(none)};
+
+
+Abstract Syntax Tree
+
+	programme = 	commands*;
+	commands = 		{func} function|
+								{stat} statement;
+	id_value = id value*;
+
+	function = 		id argument* statement;
+	value_arg = 	value;
+	comma_id = id value_arg*;
+
+	argument = 		 id value_arg* comma_id*;
+	//combo 	= 		{combine} comma_id value_arg? ;
+	//comma_id = 		{ci} id;
+
+
+
+	statement =		{if} comparison statement |
+						  	{while} comparison statement |
+						  	{for} [l_id]:id [r_id]:id statement |
+						  	{return} expression|
+						  	{print} expression comma_expr*|
+						  	{equal} id expression|
+						  	{mineqs} id expression|
+						  	{diveqs} id expression|
+						  	{arrays} id [l_expr]:expression [r_expr]:expression|
+						  	{assert} expression comma_expr? |
+						  	{functionc} id arglist;
+	sign = {neg} minus| {pos} plus;
+	number = {integer} sign* integer |
+					 {decimal} sign* decimal;
+	value 	=	{idfunctionv}id function_call |
+							{number} number|
+							{stringv} string |
+							{none} none;
+	comma_expr = 	 expression;
+	comma_value = value;
+	comparison = {orc} [l]:comparison [r]:comparison|
+							 {andc} comparison|
+						 	 {notc} comparison|
+							 {comp} comparison|
+							 {true} true|
+							 {false} false|
+							 {lessc} [lpar]:expression [rpar]:expression|
+							 {greatc}[lpar]:expression [rpar]:expression|
+							 {eqgreatc}[lpar]:expression [rpar]:expression|
+							 {eqless}[lpar]:expression [rpar]:expression|
+							 {noteqc}[lpar]:expression [rpar]:expression|
+							 {logeqc}[lpar]:expression [rpar]:expression;
+
+  function_call = id arglist* ;
+  arglist = expression comma_expr*;
+
+	more_values = value comma_value*;
+
+	expression = 	{multiplication} [l]:expression [r]:expression |
+							 	{addition} [l]:expression [r]:expression|
+							 	{substraction} [l]:expression [r]:expression|
+								{div} [l]:expression [r]:expression |
+								{mod} [l]:expression [r]:expression |
+								{pow} [l]:expression [r]:expression |
+								{dplus} expression | /*++a*/
+						  	{dminus} expression |
+								{functioncalls} function_call |
+					   		{val} value |
+								{identifier} id |
+					   		{par_exp} expression |
+					   		{br_exp} more_values*|
+								{id_expr} id expression;
